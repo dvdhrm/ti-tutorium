@@ -131,19 +131,19 @@ static void client_handle(struct bth_client *client, uint8_t type, uint16_t len,
 
 static void client_parse(struct bth_client *client, const char *buf, size_t s)
 {
-	int ret;
+	int ret, i;
 	uint8_t *data;
 	size_t size;
 	uint16_t length;
 
-	while (s) {
-		ret = shl_array_push(client->input, &buf[s]);
+	for (i = 0; i < s; ++i) {
+		log_notice("received byte %d", buf[i]);
+		ret = shl_array_push(client->input, &buf[i]);
 		if (ret) {
 			log_error("client %p: cannot grow input buffer",
 				  client);
 			return;
 		}
-		--s;
 
 		data = shl_array_get_array(client->input);
 		size = shl_array_get_length(client->input);
