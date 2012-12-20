@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 	else
 		addr = argv[1];
 
-	ret = bth_server_new(&server, eloop, addr, 8);
+	ret = bth_server_new(&server, eloop, addr, 17);
 	if (ret)
 		goto out_sigint;
 
