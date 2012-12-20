@@ -57,7 +57,7 @@ static void client_write_pkg(struct bth_client *client,
 			     uint16_t size,
 			     const uint8_t *payload)
 {
-	uint8_t buf[3], crc[2];
+	uint8_t buf[3], crc;
 
 	buf[0] = type;
 	*((uint16_t*)&buf[1]) = htole16(size);
@@ -70,11 +70,10 @@ static void client_write_pkg(struct bth_client *client,
 		shl_ring_write(client->buf, (void*)payload, size);
 
 	/* TODO: compute CRC */
-	crc[0] = 0xff;
-	crc[1] = 0xff;
+	crc = 0xff;
 
 	/* write checksum */
-	shl_ring_write(client->buf, (void*)crc, sizeof(crc));
+	shl_ring_write(client->buf, (void*)&crc, sizeof(crc));
 
 	ev_fd_update(client->fd, EV_READABLE | EV_WRITEABLE);
 	log_debug("client %p: queue pkg t: %d s: %d",
@@ -148,15 +147,15 @@ static void client_parse(struct bth_client *client, const char *buf, size_t s)
 
 		data = shl_array_get_array(client->input);
 		size = shl_array_get_length(client->input);
-		if (size < 5)
+		if (size < 4)
 			continue;
 
 		length = le16toh(*(const uint16_t*)&data[1]);
-		if (size < length + 5)
+		if (size < length + 4)
 			continue;
 
 		client_handle(client, data[0], length, &data[3],
-			      le16toh(*(const uint16_t*)&data[3 + length]));
+			      data[3 + length]);
 		shl_array_reset(client->input);
 	}
 }
