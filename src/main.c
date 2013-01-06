@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/signalfd.h>
+#include <time.h>
 #include "eloop.h"
 #include "log.h"
 #include "protocol.h"
@@ -31,6 +32,7 @@ int main(int argc, char **argv)
 	struct bth_server *server;
 	const char *addr;
 
+	srand(time(NULL));
 	log_set_config(&LOG_CONFIG_INFO(1, 1));
 	log_print_init("moind");
 

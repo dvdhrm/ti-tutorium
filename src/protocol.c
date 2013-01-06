@@ -86,6 +86,9 @@ static void client_write_introduction(struct bth_client *client)
 		PROTO_ID_ERROR,
 		PROTO_ID_SERVICELIST,
 		PROTO_ID_PHONE,
+		PROTO_ID_ROOM,
+		PROTO_ID_MAP,
+		PROTO_ID_QUIZ,
 	};
 
 	client_write_pkg(client, PROTO_ID_SERVICELIST, sizeof(service_ids),
@@ -95,6 +98,50 @@ static void client_write_introduction(struct bth_client *client)
 static void client_write_phone(struct bth_client *client, const char *phone)
 {
 	client_write_pkg(client, PROTO_ID_PHONE, strlen(phone), (void*)phone);
+}
+
+static void client_write_room(struct bth_client *client, const char *start,
+			      const char *end, const char *name)
+{
+	int len1 = strlen(start), len2 = strlen(end), len3 = strlen(name);
+	char buf[len1 + len2 + len3];
+
+	if (len1 != 4 || len2 != 4)
+		log_warning("invalid time-length %d %d in outgoing ROOM message",
+			    len1, len2);
+
+	memcpy(buf, start, len1);
+	memcpy(&buf[len1], end, len2);
+	memcpy(&buf[len2], name, len3);
+
+	client_write_pkg(client, PROTO_ID_ROOM, len1 + len2 + len3, (void*)buf);
+}
+
+static void client_write_map(struct bth_client *client)
+{
+}
+
+static void client_write_quiz(struct bth_client *client)
+{
+	static const char *list[] = {
+		"PI ist ...;3.14159265;3.14159263;3.14159267;3.14159261;1",
+		"sum(2i, i = 1 -> n) = ?;(n+1)n/2;(n+1)n;(n-1)n/2;(n-1)n;2",
+		"differentiate(cos(x), x) = ?;sin(x);-sin(x);2",
+		"differentiate(sin(x), x) = ?;cos(x);-cos(x);1",
+		"integrate(ln(1-x), x)-c = ?;(1-x)ln(x-1)-x;"
+			"(1-x)ln(1-x)-x;(x-1)ln(x-1)-x;(x-1)ln(1-x)-x;4",
+		"1 - (j-1)/j = ?;1/j;1/(j+1);(j-1);j/(j+1);1",
+		"Which is not e?;none;cos(-i) + i * sin(-i);"
+			"integrate(e^x, x = -inf -> 1);lim(n / n!^(1/n), n -> inf);"
+			"lim((1 + 1/n)^n, n -> inf);sum((i-1)^2 / i!, i = 0 -> inf);"
+			"sum(1 / i!, i = 0 -> inf);~2.718281828",
+		"Guess right!;here;here;here;here;3",
+	};
+	static size_t llen = sizeof(list) / sizeof(*list);
+	unsigned int pos = rand() % llen;
+
+	client_write_pkg(client, PROTO_ID_QUIZ, strlen(list[pos]),
+			 (void*)list[pos]);
 }
 
 static void client_handle_phone(struct bth_client *client, uint16_t len,
@@ -107,6 +154,42 @@ static void client_handle_phone(struct bth_client *client, uint16_t len,
 			    client, len);
 
 	client_write_phone(client, "07071 204 - 1300");
+}
+
+static void client_handle_room(struct bth_client *client, uint16_t len,
+			       const uint8_t *payload)
+{
+	log_notice("client %p: received ROOM request", client);
+
+	if (len != 0)
+		log_warning("client %p: received ROOM request with invalid length %d",
+			    client, len);
+
+	client_write_room(client, "1215", "1345", "Dinner!");
+}
+
+static void client_handle_map(struct bth_client *client, uint16_t len,
+			      const uint8_t *payload)
+{
+	log_notice("client %p: received MAP request", client);
+
+	if (len != 0)
+		log_warning("client %p: received MAP request with invalid length %d",
+			    client, len);
+
+	client_write_map(client);
+}
+
+static void client_handle_quiz(struct bth_client *client, uint16_t len,
+			       const uint8_t *payload)
+{
+	log_notice("client %p: received QUIZ request", client);
+
+	if (len != 0)
+		log_warning("client %p: received QUIZ request with invalid length %d",
+			    client, len);
+
+	client_write_quiz(client);
 }
 
 static void client_handle(struct bth_client *client, uint8_t type, uint16_t len,
@@ -122,6 +205,15 @@ static void client_handle(struct bth_client *client, uint8_t type, uint16_t len,
 	switch (type) {
 	case PROTO_ID_PHONE:
 		client_handle_phone(client, len, payload);
+		break;
+	case PROTO_ID_ROOM:
+		client_handle_room(client, len, payload);
+		break;
+	case PROTO_ID_MAP:
+		client_handle_map(client, len, payload);
+		break;
+	case PROTO_ID_QUIZ:
+		client_handle_quiz(client, len, payload);
 		break;
 	default:
 		log_warning("client %p: unknown type %d", client, (int)type);
