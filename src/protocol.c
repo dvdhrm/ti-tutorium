@@ -48,6 +48,8 @@ struct bth_server {
 	struct ev_fd *fd;
 
 	struct shl_dlist clients;
+	char *map;
+	size_t map_len;
 };
 
 static void client_free(struct bth_client *client);
@@ -119,6 +121,8 @@ static void client_write_room(struct bth_client *client, const char *start,
 
 static void client_write_map(struct bth_client *client)
 {
+	client_write_pkg(client, PROTO_ID_MAP, client->server->map_len,
+			 (void*)client->server->map);
 }
 
 static void client_write_quiz(struct bth_client *client)
@@ -381,6 +385,60 @@ static void server_event(struct ev_fd *fd, int mask, void *data)
 	client_new(s, client, buf);
 }
 
+static char *read_file(const char *path, size_t *size)
+{
+	FILE *ffile;
+	ssize_t len;
+	char *buf;
+
+	ffile = fopen(path, "rb");
+	if (!ffile) {
+		log_error("cannot open file %s (%d): %m", path, errno);
+		return NULL;
+	}
+
+	if (fseek(ffile, 0, SEEK_END) != 0) {
+		log_error("cannot seek %s (%d): %m", path, errno);
+		fclose(ffile);
+		return NULL;
+	}
+
+	len = ftell(ffile);
+	if (len < 0) {
+		log_error("cannot tell %s (%d): %m", path, errno);
+		fclose(ffile);
+		return NULL;
+	}
+
+	if (len < 1) {
+		log_error("empty file %s (%d): %m", path, errno);
+		fclose(ffile);
+		return NULL;
+	}
+
+	rewind(ffile);
+
+	buf = malloc(len + 1);
+	if (!buf) {
+		log_error("memory allocation failed");
+		fclose(ffile);
+		return NULL;
+	}
+
+	if (len != fread(buf, 1, len, ffile)) {
+		log_error("cannot read %s (%d): %m", path, errno);
+		free(buf);
+		fclose(ffile);
+		return NULL;
+	}
+
+	buf[len] = 0;
+	*size = len;
+	fclose(ffile);
+
+	return buf;
+}
+
 int bth_server_new(struct bth_server **out,
 		   struct ev_eloop *eloop,
 		   const char *srcaddr,
@@ -437,10 +495,19 @@ int bth_server_new(struct bth_server **out,
 	if (ret)
 		goto err_close;
 
+	log_info("reading map-file 'map.png'");
+	s->map = read_file("map.png", &s->map_len);
+	if (!s->map) {
+		log_error("cannot read map file 'map.png'");
+		goto err_eloop;
+	}
+
 	ev_eloop_ref(s->eloop);
 	*out = s;
 	return 0;
 
+err_eloop:
+	ev_eloop_rm_fd(s->fd);
 err_close:
 	close(s->sock);
 err_free:
@@ -463,6 +530,7 @@ void bth_server_free(struct bth_server *s)
 		client_free(client);
 	}
 
+	free(s->map);
 	ev_eloop_rm_fd(s->fd);
 	close(s->sock);
 	ev_eloop_unref(s->eloop);
