@@ -60,26 +60,30 @@ static void client_write_pkg(struct bth_client *client,
 			     const uint8_t *payload)
 {
 	uint8_t buf[3], crc;
+	unsigned int i;
 
+	crc = 0;
 	buf[0] = type;
 	*((uint16_t*)&buf[1]) = htole16(size);
 
 	/* write header */
 	shl_ring_write(client->buf, (void*)buf, sizeof(buf));
+	for (i = 0; i < 3; ++i)
+		crc ^= buf[i];
 
 	/* write payload */
-	if (size)
+	if (size) {
 		shl_ring_write(client->buf, (void*)payload, size);
-
-	/* TODO: compute CRC */
-	crc = 0xff;
+		for (i = 0; i < size; ++i)
+			crc ^= payload[i];
+	}
 
 	/* write checksum */
 	shl_ring_write(client->buf, (void*)&crc, sizeof(crc));
 
 	ev_fd_update(client->fd, EV_READABLE | EV_WRITEABLE);
-	log_debug("client %p: queue pkg t: %d s: %d p: %s",
-		  client, (int)type, (int)size, (char*)payload);
+	log_debug("client %p: queue pkg t: %d s: %d c: %d p: %s",
+		  client, (int)type, (int)size, (int)crc, (char*)payload);
 }
 
 static void client_write_introduction(struct bth_client *client)
@@ -197,14 +201,24 @@ static void client_handle_quiz(struct bth_client *client, uint16_t len,
 }
 
 static void client_handle(struct bth_client *client, uint8_t type, uint16_t len,
-			  const uint8_t *payload, uint16_t crc)
+			  const uint8_t *payload, uint8_t crc)
 {
+	uint8_t rcrc;
+	unsigned int i;
+
 	log_notice("client %p: Received package:\n"
 		   "  Type: %d\n"
 		   "  Length: %d\n"
 		   "  Payload: %s\n"
 		   "  CRC: %x\n",
 		   client, (int)type, (int)len, payload, (int)crc);
+
+	rcrc = type ^ (len & 0x00ff) ^ (len & 0xff00);
+	for (i = 0; i < len; ++i)
+		rcrc ^= payload[i];
+
+	if (rcrc != crc)
+		log_warning("CRC failure: %d != %d", (int)crc, (int)rcrc);
 
 	switch (type) {
 	case PROTO_ID_PHONE:
