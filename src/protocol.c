@@ -78,8 +78,8 @@ static void client_write_pkg(struct bth_client *client,
 	shl_ring_write(client->buf, (void*)&crc, sizeof(crc));
 
 	ev_fd_update(client->fd, EV_READABLE | EV_WRITEABLE);
-	log_debug("client %p: queue pkg t: %d s: %d",
-		  client, (int)type, (int)size);
+	log_debug("client %p: queue pkg t: %d s: %d p: %s",
+		  client, (int)type, (int)size, (char*)payload);
 }
 
 static void client_write_introduction(struct bth_client *client)
@@ -496,7 +496,7 @@ int bth_server_new(struct bth_server **out,
 		goto err_close;
 
 	log_info("reading map-file 'map.png'");
-	s->map = read_file("map.png", &s->map_len);
+	s->map = read_file("test.png", &s->map_len);
 	if (!s->map) {
 		log_error("cannot read map file 'map.png'");
 		goto err_eloop;
