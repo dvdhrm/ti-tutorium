@@ -130,8 +130,8 @@ static void client_write_quiz(struct bth_client *client)
 	static const char *list[] = {
 		"PI ist ...;3.14159265;3.14159263;3.14159267;3.14159261;1",
 		"sum(2i, i = 1 -> n) = ?;(n+1)n/2;(n+1)n;(n-1)n/2;(n-1)n;2",
-		"differentiate(cos(x), x) = ?;sin(x);-sin(x);2",
-		"differentiate(sin(x), x) = ?;cos(x);-cos(x);1",
+		"differentiate(cos(x), x) = ?;sin(x);-sin(x);none;none;2",
+		"differentiate(sin(x), x) = ?;cos(x);-cos(x);none;none;1",
 		"integrate(ln(1-x), x)-c = ?;(1-x)ln(x-1)-x;"
 			"(1-x)ln(1-x)-x;(x-1)ln(x-1)-x;(x-1)ln(1-x)-x;4",
 		"1 - (j-1)/j = ?;1/j;1/(j+1);(j-1);j/(j+1);1",
